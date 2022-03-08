@@ -32,6 +32,7 @@ class ObservabilityBuffer(SimpleQueue):
 
     def get_messages_batch(self, batch_size: int) -> list["Message"]:
         messages = []
+        self.consumer.qos(prefetch_count=batch_size)
         for _ in range(batch_size):
             try:
                 # TODO add prefetch_count
