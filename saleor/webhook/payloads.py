@@ -1147,7 +1147,6 @@ def generate_api_call_payload(request, response):
     limit -= req_headers.byte_size + resp_headers.byte_size + req_body.byte_size
     resp_body = JsonTruncText.create(response.content.decode(response.charset), limit)
     req_data = {
-        "id": str(getattr(request, "request_uuid", uuid.uuid4())),
         "time": request.request_time.timestamp(),
         "headers": asdict(req_headers),
         "body": asdict(req_body),
@@ -1203,11 +1202,13 @@ def generate_event_delivery_attempt_payload(
             webhook_data["name"] = webhook.name
             webhook_data["targetUrl"] = webhook.target_url
     return {
-        "id": graphene.Node.to_global_id("EventDeliveryAttempt", attempt.pk),
-        "time": attempt.created_at.timestamp(),
-        "duration": attempt.duration,
-        "status": attempt.status,
-        "nextRetry": next_retry.timestamp() if next_retry else None,
+        "eventDeliveryAttempt": {
+            "id": graphene.Node.to_global_id("EventDeliveryAttempt", attempt.pk),
+            "time": attempt.created_at.timestamp(),
+            "duration": attempt.duration,
+            "status": attempt.status,
+            "nextRetry": next_retry.timestamp() if next_retry else None,
+        },
         "request": {
             "headers": asdict(req_headers),
         },

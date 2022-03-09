@@ -3,7 +3,6 @@ import hashlib
 import json
 import logging
 import traceback
-import uuid
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import opentracing
@@ -467,5 +466,4 @@ def set_query_cost_on_result(execution_result: ExecutionResult, query_cost):
 def observability_report_api_call(request, response: JsonResponse):
     if settings.OBSERVABILITY_ACTIVE:
         if settings.OBSERVABILITY_REPORT_ALL_API_CALLS or getattr(request, "app", None):
-            request.request_uuid = uuid.uuid4()
             request.plugins.report_api_call(request, response)

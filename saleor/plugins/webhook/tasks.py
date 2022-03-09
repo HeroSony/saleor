@@ -3,8 +3,9 @@ import logging
 from dataclasses import dataclass
 from enum import Enum
 from json import JSONDecodeError
-from typing import TYPE_CHECKING, Callable, Dict, Optional, Tuple, Type
+from typing import TYPE_CHECKING, Callable, Dict, Optional, Tuple, Type, cast
 from urllib.parse import urlparse, urlunparse
+from uuid import uuid4
 
 import boto3
 import requests
@@ -343,7 +344,13 @@ def observability_report_events_task(event_type: str, batch_size: int):
         if len(messages) == 0:
             return 0
         domain = Site.objects.get_current().domain
-        payloads = [msg.decode() for msg in messages]
+        payloads: list[dict] = []
+        for msg in messages:
+            payload = cast(dict, msg.decode())
+            if msg.delivery_tag:
+                payload["messageId"] = msg.delivery_tag
+            else:
+                payload["messageId"] = str(uuid4())
         for webhook in _get_webhooks_for_event(event_type):
             send_observability_webhook_request(webhook, domain, event_type, payloads)
         for msg in messages:
