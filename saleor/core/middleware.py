@@ -1,5 +1,4 @@
 import logging
-import uuid
 from datetime import datetime
 from functools import partial
 from typing import TYPE_CHECKING, Callable, Union
@@ -7,7 +6,6 @@ from typing import TYPE_CHECKING, Callable, Union
 from django.conf import settings
 from django.contrib.sites.models import Site
 from django.core.exceptions import MiddlewareNotUsed
-from django.urls import reverse
 from django.utils import timezone
 from django.utils.functional import SimpleLazyObject
 from django.utils.translation import get_language
@@ -23,7 +21,6 @@ if TYPE_CHECKING:
     from ..app.models import App
 
 Requestor = Union["User", "App"]
-API_PATH = SimpleLazyObject(lambda: reverse("api"))
 
 logger = logging.getLogger(__name__)
 
@@ -135,20 +132,3 @@ def jwt_refresh_token_middleware(get_response):
         return response
 
     return middleware
-
-
-def api_reporter(get_response):
-    """Report API call."""
-
-    def _report(request):
-        response = get_response(request)
-        if request.path == API_PATH and request.method == "POST":
-            if settings.OBSERVABILITY_ACTIVE and (
-                settings.OBSERVABILITY_REPORT_ALL_API_CALLS
-                or getattr(request, "app", None)
-            ):
-                request.request_uuid = uuid.uuid4()
-                request.plugins.report_api_call(request, response)
-        return response
-
-    return _report
