@@ -35,7 +35,6 @@ class ObservabilityBuffer(SimpleQueue):
         self.consumer.qos(prefetch_count=batch_size)
         for _ in range(batch_size):
             try:
-                # TODO add prefetch_count
                 messages.append(self.get(block=True, timeout=10))
             except self.Empty:
                 break
