@@ -917,28 +917,34 @@ def test_event_delivery_retry(mocked_webhook_send, event_delivery, settings):
     mocked_webhook_send.assert_called_once_with(event_delivery.pk)
 
 
-@mock.patch("saleor.plugins.webhook.plugin.trigger_webhooks_for_event.delay")
-def test_report_api_call(mocked_webhook_trigger, rf, settings):
+@mock.patch("saleor.plugins.webhook.plugin._get_webhooks_for_event")
+@mock.patch("saleor.plugins.webhook.plugin.observability_buffer_event")
+def test_report_api_call(
+    mocked_observability_buffer_event,
+    mocked_get_webhooks_for_event,
+    rf,
+    any_webhook,
+    settings,
+):
+    mocked_get_webhooks_for_event.return_value = [any_webhook]
     settings.PLUGINS = ["saleor.plugins.webhook.plugin.WebhookPlugin"]
     manager = get_plugins_manager()
     request = rf.post("/", data={"request": "data"})
     request.request_time = datetime(1914, 6, 28, 10, 50, tzinfo=timezone.utc)
-    request.app = None
-    request.request_uuid = uuid.uuid4()
     response = HttpResponse("response")
     expected_data = generate_api_call_payload(request, response)
 
     manager.report_api_call(request, response)
 
-    mocked_webhook_trigger.assert_called_once_with(
+    mocked_observability_buffer_event.assert_called_once_with(
         WebhookEventAsyncType.REPORT_API_CALL, expected_data
     )
 
 
 @mock.patch("saleor.plugins.webhook.plugin._get_webhooks_for_event")
-@mock.patch("saleor.plugins.webhook.plugin.trigger_webhooks_for_event.delay")
+@mock.patch("saleor.plugins.webhook.plugin.observability_buffer_event")
 def test_report_event_delivery_attempt(
-    mocked_webhook_trigger,
+    mocked_observability_buffer_event,
     mocked_get_webhooks_for_event,
     any_webhook,
     event_attempt,
@@ -952,7 +958,7 @@ def test_report_event_delivery_attempt(
 
     manager.report_event_delivery_attempt(event_attempt, next_retry)
 
-    mocked_webhook_trigger.assert_called_once_with(
+    mocked_observability_buffer_event.assert_called_once_with(
         WebhookEventAsyncType.REPORT_EVENT_DELIVERY_ATTEMPT, expected_data
     )
 

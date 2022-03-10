@@ -967,9 +967,8 @@ def test_generate_api_call_payload(app, rf):
     request.request_uuid = uuid.uuid4()
     response = JsonResponse({"response": "data"})
 
-    payload = json.loads(generate_api_call_payload(request, response))[0]
+    payload = generate_api_call_payload(request, response)
 
-    assert uuid.UUID(payload["request"].pop("id"), version=4) == request.request_uuid
     assert payload == {
         "request": {
             "time": request.request_time.timestamp(),
@@ -1002,22 +1001,6 @@ def test_generate_api_call_payload(app, rf):
     }
 
 
-def test_generate_api_call_payload_from_request_with_non_utf8_body(app, rf):
-    request = rf.post(
-        "/graphql",
-        data="abcd".encode("UTF-16"),
-        content_type="application/octet-stream",
-    )
-    request.request_time = datetime(1914, 6, 28, 10, 50, tzinfo=timezone.utc)
-    request.app = app
-    request.request_uuid = uuid.uuid4()
-    response = JsonResponse({"response": "data"})
-
-    payload = json.loads(generate_api_call_payload(request, response))[0]
-
-    assert payload["request"]["body"] == {"text": "", "truncated": False}
-
-
 def test_generate_api_call_payload_from_post_request(app, rf):
     request = rf.post("/graphql", {"request": "data", "choices": ("a", "b", "d")})
     request.request_time = datetime(1914, 6, 28, 10, 50, tzinfo=timezone.utc)
@@ -1025,7 +1008,7 @@ def test_generate_api_call_payload_from_post_request(app, rf):
     request.request_uuid = uuid.uuid4()
     response = JsonResponse({"response": "data"})
 
-    payload = json.loads(generate_api_call_payload(request, response))[0]
+    payload = generate_api_call_payload(request, response)
 
     assert payload["request"]["body"] == {
         "text": "request=data&choices=a&choices=b&choices=d",
@@ -1042,9 +1025,9 @@ def test_generate_api_call_not_from_app_payload(rf):
     request.request_uuid = uuid.uuid4()
     response = JsonResponse({"response": "data"})
 
-    payload = json.loads(generate_api_call_payload(request, response))[0]
+    payload = generate_api_call_payload(request, response)
 
-    assert payload["app"] == {}
+    assert payload["app"] is None
 
 
 def test_generate_event_delivery_attempt_payload(event_attempt):
@@ -1052,14 +1035,16 @@ def test_generate_event_delivery_attempt_payload(event_attempt):
     webhook = delivery.webhook
     app = webhook.app
 
-    payload = json.loads(generate_event_delivery_attempt_payload(event_attempt))[0]
+    payload = generate_event_delivery_attempt_payload(event_attempt)
 
     assert payload == {
-        "id": graphene.Node.to_global_id("EventDeliveryAttempt", event_attempt.pk),
-        "time": event_attempt.created_at.timestamp(),
-        "duration": None,
-        "status": EventDeliveryStatus.PENDING,
-        "nextRetry": None,
+        "eventDeliveryAttempt": {
+            "id": graphene.Node.to_global_id("EventDeliveryAttempt", event_attempt.pk),
+            "time": event_attempt.created_at.timestamp(),
+            "duration": None,
+            "status": EventDeliveryStatus.PENDING,
+            "nextRetry": None,
+        },
         "request": {
             "headers": {"headers": {}, "striped": False},
         },
@@ -1090,12 +1075,10 @@ def test_generate_event_delivery_attempt_payload(event_attempt):
 
 def test_generate_event_delivery_attempt_payload_with_next_retry_date(event_attempt):
     next_retry_date = datetime(1914, 6, 28, 10, 50, tzinfo=timezone.utc)
-    payload = json.loads(
-        generate_event_delivery_attempt_payload(
-            event_attempt, next_retry=next_retry_date
-        )
-    )[0]
-    assert payload["nextRetry"] == next_retry_date.timestamp()
+    payload = generate_event_delivery_attempt_payload(
+        event_attempt, next_retry=next_retry_date
+    )
+    assert payload["eventDeliveryAttempt"]["nextRetry"] == next_retry_date.timestamp()
 
 
 @pytest.mark.parametrize(
